@@ -5,10 +5,10 @@
 #include <cstdlib> // Defines rand() and srand()
 #include <ctime>   // Defines time()
 
-const float G = 1.0;        // 6.674e-5 // A "tuned" gravitational constant for our simulation
-const float a = 10.0;       // Softening factor to prevent division by zero
-const int numParticles = 3; // Number of particles in the simulation
-const float dt = 1.0f;      // Our time step
+const float G = 1.0;         // 6.674e-5 // A "tuned" gravitational constant for our simulation
+const float epsilon = 10.0f; // Formerly 'a'
+const int numParticles = 3;  // Number of particles in the simulation
+const float dt = 1.0f;       // Our time step
 
 // A single particle in our simulation
 struct Particle {
@@ -127,19 +127,26 @@ int main(void) {
         // Calculate gravitational forces between every pair of particles
         for (int i = 0; i < numParticles; ++i) {
             for (int j = 0; j < numParticles; ++j) {
-                if (i == j) continue; // A particle doesn't attract itself
+                if (i == j) continue;
 
+                // --- NEW PLUMMER SOFTENING IMPLEMENTATION ---
+
+                // Vector from particle i to j
                 float dx = particles[j].posX - particles[i].posX;
                 float dy = particles[j].posY - particles[i].posY;
-                float distSq = dx * dx + dy * dy + a * a;
-                float dist = sqrt(distSq);
-                
-                // Calculate force magnitude
-                float force = (G * particles[i].mass * particles[j].mass) / distSq;
 
-                // Add to the total force acting on particle 'i'
-                particles[i].forceX += force * dx / dist;
-                particles[i].forceY += force * dy / dist;
+                // True squared distance (r^2 from the formula)
+                float rSq = dx * dx + dy * dy;
+
+                // Denominator from formula (9.8): (r^2 + ε^2)^(3/2)
+                float denom = pow(rSq + epsilon * epsilon, 1.5);
+                
+                // Calculate the force scalar part: F = G * m1 * m2 / denom
+                float force_scalar = (G * particles[i].mass * particles[j].mass) / denom;
+
+                // Add the force vector components to particle 'i'
+                particles[i].forceX += force_scalar * dx;
+                particles[i].forceY += force_scalar * dy;
             }
         }
 
