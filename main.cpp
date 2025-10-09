@@ -5,9 +5,10 @@
 #include <cstdlib> // Defines rand() and srand()
 #include <ctime>   // Defines time()
 
-const float G = 1.0;      // 6.674e-5 // A "tuned" gravitational constant for our simulation
-const float a = 10.0;     // Softening factor to prevent division by zero
+const float G = 1.0;        // 6.674e-5 // A "tuned" gravitational constant for our simulation
+const float a = 10.0;       // Softening factor to prevent division by zero
 const int numParticles = 3; // Number of particles in the simulation
+const float dt = 1.0f;      // Our time step
 
 // A single particle in our simulation
 struct Particle {
@@ -35,17 +36,10 @@ struct Particle {
         forceY = 0.0f;
     }
 
-    // Update the particle's velocity and position based on the calculated force
-    void update() {
-        // Update velocity based on force and mass (a = F/m)
-        float accelX = forceX / mass;
-        float accelY = forceY / mass;
-        velX += accelX;
-        velY += accelY;
-
-        // Update position based on velocity
-        posX += velX;
-        posY += velY;
+    // Update the particle's position (the DRIFT step)
+    void update(float timeStep) { // Now accepts a time step argument
+        posX += velX * timeStep;
+        posY += velY * timeStep;
     }
 
     // Draw the particle as a single point
@@ -112,21 +106,34 @@ int main(void) {
         
         // --- LOGIC / PHYSICS UPDATE ---
 
-        // Step A: Reset forces for all particles
+        // KICK-DRIFT-KICK LEAPFROG INTEGRATOR
+
+        // Step 1: KICK (update velocity for the first half time step)
+        for (auto& p : particles) {
+            p.velX += 0.5f * (p.forceX / p.mass) * dt;
+            p.velY += 0.5f * (p.forceY / p.mass) * dt;
+        }
+
+        // Step 2: DRIFT (update position for a full time step)
+        for (auto& p : particles) {
+            p.update(dt);
+        }
+
+        // Step 3: RECALCULATE FORCES at the new positions
         for (auto& p : particles) {
             p.resetForce();
         }
-
-        // Step B: Calculate gravitational forces between every pair of particles
+        
+        // Calculate gravitational forces between every pair of particles
         for (int i = 0; i < numParticles; ++i) {
             for (int j = 0; j < numParticles; ++j) {
                 if (i == j) continue; // A particle doesn't attract itself
 
                 float dx = particles[j].posX - particles[i].posX;
                 float dy = particles[j].posY - particles[i].posY;
-                float distSq = dx * dx + dy * dy + a * a; // Squared distance with softening
+                float distSq = dx * dx + dy * dy + a * a;
                 float dist = sqrt(distSq);
-
+                
                 // Calculate force magnitude
                 float force = (G * particles[i].mass * particles[j].mass) / distSq;
 
@@ -136,9 +143,10 @@ int main(void) {
             }
         }
 
-        // Step C: Update particle positions based on the calculated forces
+        // Step 4: KICK (update velocity for the second half time step)
         for (auto& p : particles) {
-            p.update();
+            p.velX += 0.5f * (p.forceX / p.mass) * dt;
+            p.velY += 0.5f * (p.forceY / p.mass) * dt;
         }
 
         // Render here
