@@ -1,0 +1,18 @@
+# Build products
+build/
+*.exe
+*.dll
+*.obj
+*.ilk
+*.pdb
+*.tlog
+*.lib
+*.log
+*.idb
+*.pch
+
+# Visual Studio specific
+.vs/
+*.suo
+*.user
+*.sln.docstates
