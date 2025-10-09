@@ -5,31 +5,52 @@
 #include <cstdlib> // Defines rand() and srand()
 #include <ctime>   // Defines time()
 
-// Define the blueprint for a single particle
+const float G = 1.0;      // 6.674e-5 // A "tuned" gravitational constant for our simulation
+const float a = 10.0;     // Softening factor to prevent division by zero
+const int numParticles = 3; // Number of particles in the simulation
+
+// A single particle in our simulation
 struct Particle {
     float posX, posY; // Position
     float velX, velY; // Velocity
+    float forceX, forceY; // Total force acting on the particle
+    float mass;
 
-    // Constructor to initialize a particle with a random position and velocity
+    // Constructor
     Particle(int screenWidth, int screenHeight) {
-        // Start at a random position within the screen bounds
         posX = rand() % screenWidth;
         posY = rand() % screenHeight;
-
-        // Start with a random velocity
-        velX = ((rand() % 100) / 50.0f) - 1.0f; // Random float between -1.0 and 1.0
-        velY = ((rand() % 100) / 50.0f) - 1.0f; // Random float between -1.0 and 1.0
+        velX = 0.0f;
+        velY = 0.0f;
+        // velX = ((rand() % 100) / 50.0f) - 1.0f; // Give a small random velocity
+        // velY = ((rand() % 100) / 50.0f) - 1.0f;
+        forceX = 0.0f;
+        forceY = 0.0f;
+        mass = (rand() % 1000 / 100.0f) + 1.0f; // Random mass between 1.0 and 11.0
     }
 
-    // Update the particle's position based on its velocity
+    // Reset the force for the next frame of calculation
+    void resetForce() {
+        forceX = 0.0f;
+        forceY = 0.0f;
+    }
+
+    // Update the particle's velocity and position based on the calculated force
     void update() {
+        // Update velocity based on force and mass (a = F/m)
+        float accelX = forceX / mass;
+        float accelY = forceY / mass;
+        velX += accelX;
+        velY += accelY;
+
+        // Update position based on velocity
         posX += velX;
         posY += velY;
     }
 
     // Draw the particle as a single point
     void draw() {
-        glVertex2f(posX, posY); // Specify the vertex for our point
+        glVertex2f(posX, posY);
     }
 };
 
@@ -76,7 +97,6 @@ int main(void) {
     // --- Create Particles ---
     srand(time(0));
     std::vector<Particle> particles;
-    const int numParticles = 1000;
 
     for (int i = 0; i < numParticles; ++i) {
         particles.push_back(Particle(width, height)); // Use the actual window width/height
@@ -91,7 +111,32 @@ int main(void) {
         }
         
         // --- LOGIC / PHYSICS UPDATE ---
-        // Update the position of every particle
+
+        // Step A: Reset forces for all particles
+        for (auto& p : particles) {
+            p.resetForce();
+        }
+
+        // Step B: Calculate gravitational forces between every pair of particles
+        for (int i = 0; i < numParticles; ++i) {
+            for (int j = 0; j < numParticles; ++j) {
+                if (i == j) continue; // A particle doesn't attract itself
+
+                float dx = particles[j].posX - particles[i].posX;
+                float dy = particles[j].posY - particles[i].posY;
+                float distSq = dx * dx + dy * dy + a * a; // Squared distance with softening
+                float dist = sqrt(distSq);
+
+                // Calculate force magnitude
+                float force = (G * particles[i].mass * particles[j].mass) / distSq;
+
+                // Add to the total force acting on particle 'i'
+                particles[i].forceX += force * dx / dist;
+                particles[i].forceY += force * dy / dist;
+            }
+        }
+
+        // Step C: Update particle positions based on the calculated forces
         for (auto& p : particles) {
             p.update();
         }
