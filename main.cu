@@ -23,7 +23,7 @@ void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true) 
 const bool USE_FIXED_SEED = true; // Set to 'true' for reproducible, 'false' for random
 const float G = 1.0f;             // 6.674e-5 // A "tuned" gravitational constant for our simulation
 const float epsilon = 10.0f;
-const int numParticles = 6;       // Number of particles in the simulation
+const int numParticles = 1000;       // Number of particles in the simulation
 const float dt = 1.0f;            // Our time step
 
 // --- CUDA Kernel ---
@@ -154,12 +154,27 @@ int main(void) {
     gpuErrchk(cudaMemcpy(d_posX, h_posX.data(), dataSize, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(d_posY, h_posY.data(), dataSize, cudaMemcpyHostToDevice));
 
+    // Toggle for switching between CPU and GPU
+    bool use_gpu = true;
+    
     // Main loop: runs until the user closes the window
     while (!glfwWindowShouldClose(window)) {
         // --- INPUT HANDLING ---
         // Check if the ESC key is pressed and set the window to close
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
             glfwSetWindowShouldClose(window, true);
+        }
+
+        // Check for 'G' key to switch to GPU
+        if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS) {
+            use_gpu = true;
+            glfwSetWindowTitle(window, "N-Body Simulation (GPU)");
+        }
+
+        // Check for 'C' key to switch to CPU
+        if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS) {
+            use_gpu = false;
+            glfwSetWindowTitle(window, "N-Body Simulation (CPU)");
         }
         
         // --- LOGIC / PHYSICS UPDATE ---
@@ -179,24 +194,60 @@ int main(void) {
         }
 
         // Step 3: RECALCULATE FORCES (GPU)
-        // Copy the latest positions to the GPU
-        gpuErrchk(cudaMemcpy(d_posX, h_posX.data(), dataSize, cudaMemcpyHostToDevice));
-        gpuErrchk(cudaMemcpy(d_posY, h_posY.data(), dataSize, cudaMemcpyHostToDevice));
+        if (use_gpu) {
+            // Copy the latest positions to the GPU
+            gpuErrchk(cudaMemcpy(d_posX, h_posX.data(), dataSize, cudaMemcpyHostToDevice));
+            gpuErrchk(cudaMemcpy(d_posY, h_posY.data(), dataSize, cudaMemcpyHostToDevice));
 
-        // Launch the kernel on the GPU
-        int threadsPerBlock = 256;
-        int numBlocks = (numParticles + threadsPerBlock - 1) / threadsPerBlock;
-        calculateForces<<<numBlocks, threadsPerBlock>>>(d_posX, d_posY, d_mass,
-                                                        d_forceX, d_forceY,
-                                                        numParticles, G, epsilon);
+            // Launch the kernel on the GPU
+            int threadsPerBlock = 256;
+            int numBlocks = (numParticles + threadsPerBlock - 1) / threadsPerBlock;
+            calculateForces<<<numBlocks, threadsPerBlock>>>(d_posX, d_posY, d_mass,
+                                                            d_forceX, d_forceY,
+                                                            numParticles, G, epsilon);
 
-        // Check for errors after kernel launch
-        gpuErrchk(cudaPeekAtLastError());
-        gpuErrchk(cudaDeviceSynchronize()); // Wait for the kernel to finish and check for errors
+            // Check for errors after kernel launch
+            gpuErrchk(cudaPeekAtLastError());
+            gpuErrchk(cudaDeviceSynchronize()); // Wait for the kernel to finish and check for errors
 
-        // Copy the resulting forces back from the GPU to the CPU
-        gpuErrchk(cudaMemcpy(h_forceX.data(), d_forceX, dataSize, cudaMemcpyDeviceToHost));
-        gpuErrchk(cudaMemcpy(h_forceY.data(), d_forceY, dataSize, cudaMemcpyDeviceToHost));
+            // Copy the resulting forces back from the GPU to the CPU
+            gpuErrchk(cudaMemcpy(h_forceX.data(), d_forceX, dataSize, cudaMemcpyDeviceToHost));
+            gpuErrchk(cudaMemcpy(h_forceY.data(), d_forceY, dataSize, cudaMemcpyDeviceToHost));
+        } else {
+            // CPU force calculation (for comparison)
+            // Reset forces
+            for (int i = 0; i < numParticles; ++i) {
+                h_forceX[i] = 0.0f;
+                h_forceY[i] = 0.0f;
+            }
+
+            for (int i = 0; i < numParticles; ++i) {
+                for (int j = 0; j < numParticles; ++j) {
+                    if (i == j) continue;  // Skip self-interaction
+
+                    // --- PLUMMER SOFTENING IMPLEMENTATION ---
+
+                    // Vector from particle i to j
+                    float dx = h_posX[j] - h_posX[i];
+                    float dy = h_posY[j] - h_posY[i];
+
+                    // True squared distance (r^2 from the formula)
+                    float rSq = dx * dx + dy * dy;
+
+                    // Denominator from formula (9.8): (r^2 + ε^2)^(3/2)
+                    float denom = pow(rSq + epsilon * epsilon, 1.5);
+                    
+                    if (denom > 0) { // Avoid division by zero
+                        // Calculate the force scalar part: F = G * m1 * m2 / denom
+                        float force_scalar = (G * h_mass[i] * h_mass[j]) / denom;
+
+                        // Add the force vector components to particle 'i'
+                        h_forceX[i] += force_scalar * dx;
+                        h_forceY[i] += force_scalar * dy;
+                    }
+                }
+            }
+        }
 
         // Step 4: KICK (CPU) - Update velocity for the second half time step
         for (int i = 0; i < numParticles; ++i) {

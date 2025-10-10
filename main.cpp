@@ -148,12 +148,14 @@ int main(void) {
                 // Denominator from formula (9.8): (r^2 + ε^2)^(3/2)
                 float denom = pow(rSq + epsilon * epsilon, 1.5);
                 
-                // Calculate the force scalar part: F = G * m1 * m2 / denom
-                float force_scalar = (G * particles[i].mass * particles[j].mass) / denom;
+                if (denom > 0) { // Avoid division by zero
+                    // Calculate the force scalar part: F = G * m1 * m2 / denom
+                    float force_scalar = (G * particles[i].mass * particles[j].mass) / denom;
 
-                // Add the force vector components to particle 'i'
-                particles[i].forceX += force_scalar * dx;
-                particles[i].forceY += force_scalar * dy;
+                    // Add the force vector components to particle 'i'
+                    particles[i].forceX += force_scalar * dx;
+                    particles[i].forceY += force_scalar * dy;
+                }
             }
         }
 
