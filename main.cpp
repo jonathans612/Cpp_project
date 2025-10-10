@@ -5,10 +5,12 @@
 #include <cstdlib> // Defines rand() and srand()
 #include <ctime>   // Defines time()
 
-const float G = 1.0;         // 6.674e-5 // A "tuned" gravitational constant for our simulation
+// --- Simulation Constants ---
+const bool USE_FIXED_SEED = true; // Set to 'true' for reproducible, 'false' for random
+const float G = 1.0;              // 6.674e-5 // A "tuned" gravitational constant for our simulation
 const float epsilon = 10.0f;
-const int numParticles = 4;  // Number of particles in the simulation
-const float dt = 1.0f;       // Our time step
+const int numParticles = 4;       // Number of particles in the simulation
+const float dt = 1.0f;            // Our time step
 
 // A single particle in our simulation
 struct Particle {
@@ -89,7 +91,12 @@ int main(void) {
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 
     // --- Create Particles ---
-    srand(time(0));
+    if (USE_FIXED_SEED) {
+        srand(42); // Use a fixed seed
+    } else {
+        srand(time(0)); // Use a random seed
+    }
+
     std::vector<Particle> particles;
 
     for (int i = 0; i < numParticles; ++i) {

@@ -20,10 +20,11 @@ void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true) 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 
 // --- Simulation Constants ---
-const float G = 1.0f;
+const bool USE_FIXED_SEED = true; // Set to 'true' for reproducible, 'false' for random
+const float G = 1.0f;             // 6.674e-5 // A "tuned" gravitational constant for our simulation
 const float epsilon = 10.0f;
-const int numParticles = 6;  // Number of particles in the simulation
-const float dt = 1.0f;       // Our time step
+const int numParticles = 6;       // Number of particles in the simulation
+const float dt = 1.0f;            // Our time step
 
 // --- CUDA Kernel ---
 __global__ void calculateForces(float* posX, float* posY, float* mass, 
@@ -116,8 +117,15 @@ int main(void) {
     // Set the background color
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 
+    // --- Create Particles ---
+    if (USE_FIXED_SEED) {
+        srand(42); // Use a fixed seed
+    } else {
+        srand(time(0)); // Use a random seed
+    }
+
+    // ... create vectors ...
     // --- Host (CPU) Data Structures ---
-    srand(time(0));
     size_t dataSize = numParticles * sizeof(float);
     std::vector<float> h_posX(numParticles);
     std::vector<float> h_posY(numParticles);
