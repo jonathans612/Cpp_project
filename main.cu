@@ -23,7 +23,7 @@ void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true) 
 const bool USE_FIXED_SEED = true; // Set to 'true' for reproducible, 'false' for random
 const float G = 1.0f;             // 6.674e-5 // A "tuned" gravitational constant for our simulation
 const float epsilon = 10.0f;
-const int numParticles = 1000;       // Number of particles in the simulation
+const int numParticles = 5000;    // Number of particles in the simulation
 const float dt = 1.0f;            // Our time step
 
 // --- CUDA Kernel ---
@@ -125,15 +125,23 @@ int main(void) {
     }
 
     // ... create vectors ...
-    // --- Host (CPU) Data Structures ---
+    std::vector<float> h_posX, h_posY, h_velX, h_velY, h_forceX, h_forceY, h_mass;
     size_t dataSize = numParticles * sizeof(float);
-    std::vector<float> h_posX(numParticles);
-    std::vector<float> h_posY(numParticles);
-    std::vector<float> h_velX(numParticles, 0.0f); // Initialize velocities to 0
-    std::vector<float> h_velY(numParticles, 0.0f);
-    std::vector<float> h_forceX(numParticles, 0.0f);
-    std::vector<float> h_forceY(numParticles, 0.0f);
-    std::vector<float> h_mass(numParticles);
+    
+    try {
+        h_posX.resize(numParticles);
+        h_posY.resize(numParticles);
+        h_velX.assign(numParticles, 0.0f);
+        h_velY.assign(numParticles, 0.0f);
+        h_forceX.assign(numParticles, 0.0f);
+        h_forceY.assign(numParticles, 0.0f);
+        h_mass.resize(numParticles);
+    }
+    catch (const std::bad_alloc& e) {
+        std::cerr << "Error: Not enough host (CPU) memory to allocate for "
+                << numParticles << " particles. " << e.what() << std::endl;
+        return -1;
+    }
 
     for (int i = 0; i < numParticles; ++i) {
         h_posX[i] = rand() % width;
@@ -141,6 +149,22 @@ int main(void) {
         h_mass[i] = (rand() % 1000 / 100.0f) + 1.0f;  // Random mass between 1.0 and 11.0
     }
 
+    // --- Proactive Memory Check ---
+    size_t freeMem, totalMem;
+    gpuErrchk(cudaMemGetInfo(&freeMem, &totalMem));
+
+    // Calculate memory needed for our 5 float arrays (posX, posY, mass, forceX, forceY)
+    size_t requiredMem = numParticles * sizeof(float) * 5;
+
+    std::cout << "Required GPU Memory: " << requiredMem / (1024 * 1024) << " MB" << std::endl;
+    std::cout << "Free GPU Memory: " << freeMem / (1024 * 1024) << " MB" << std::endl;
+
+    if (requiredMem > freeMem) {
+        std::cerr << "Error: Not enough free GPU memory to allocate for " 
+                << numParticles << " particles." << std::endl;
+        return -1; // Exit gracefully
+    }
+    
     // --- Device (GPU) Memory Allocation ---
     float *d_posX, *d_posY, *d_forceX, *d_forceY, *d_mass;
 
