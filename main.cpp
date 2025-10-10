@@ -6,8 +6,8 @@
 #include <ctime>   // Defines time()
 
 const float G = 1.0;         // 6.674e-5 // A "tuned" gravitational constant for our simulation
-const float epsilon = 10.0f; // Formerly 'a'
-const int numParticles = 3;  // Number of particles in the simulation
+const float epsilon = 10.0f;
+const int numParticles = 4;  // Number of particles in the simulation
 const float dt = 1.0f;       // Our time step
 
 // A single particle in our simulation
@@ -37,7 +37,7 @@ struct Particle {
     }
 
     // Update the particle's position (the DRIFT step)
-    void update(float timeStep) { // Now accepts a time step argument
+    void update(float timeStep) { // accepts a time step argument
         posX += velX * timeStep;
         posY += velY * timeStep;
     }
@@ -129,7 +129,7 @@ int main(void) {
             for (int j = 0; j < numParticles; ++j) {
                 if (i == j) continue;
 
-                // --- NEW PLUMMER SOFTENING IMPLEMENTATION ---
+                // --- PLUMMER SOFTENING IMPLEMENTATION ---
 
                 // Vector from particle i to j
                 float dx = particles[j].posX - particles[i].posX;

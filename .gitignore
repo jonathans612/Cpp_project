@@ -1,5 +1,6 @@
 # Build products
 build/
+build_cuda/
 *.exe
 *.dll
 *.obj
