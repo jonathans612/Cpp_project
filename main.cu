@@ -23,7 +23,7 @@ void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true) 
 const bool USE_FIXED_SEED = true; // Set to 'true' for reproducible, 'false' for random
 const float G = 1.0f;             // 6.674e-5 // A "tuned" gravitational constant for our simulation
 const float epsilon = 10.0f;
-const int numParticles = 5000;    // Number of particles in the simulation
+const int numParticles = 800;    // Number of particles in the simulation
 const float dt = 1.0f;            // Our time step
 const int MAX_PARTICLES = 10000;  // A reasonable cap, adjust for your hardware
 
@@ -101,6 +101,9 @@ int main(void) {
 
     // Make the window's context current
     glfwMakeContextCurrent(window);
+
+    // Disable VSync to uncap the framerate for benchmarking
+    glfwSwapInterval(0);
 
     // Initialize GLEW
     if (glewInit() != GLEW_OK) {
@@ -188,6 +191,11 @@ int main(void) {
 
     // Toggle for switching between CPU and GPU
     bool use_gpu = true;
+    
+    // Variables for FPS calculation
+    double lastTime = glfwGetTime();
+    int frameCount = 0;
+    char title[256];
     
     // Main loop: runs until the user closes the window
     while (!glfwWindowShouldClose(window)) {
@@ -296,6 +304,23 @@ int main(void) {
             glVertex2f(h_posX[i], h_posY[i]);
         }
         glEnd();
+
+        // --- FPS COUNTER ---
+        double currentTime = glfwGetTime();
+        frameCount++;
+
+        // If a second has passed since the last update
+        if (currentTime - lastTime >= 1.0) {
+            // Format the title string with the current mode and FPS
+            sprintf(title, "N-Body Simulation (%s) | %d FPS", use_gpu ? "GPU" : "CPU", frameCount);
+            
+            // Set the window title
+            glfwSetWindowTitle(window, title);
+
+            // Reset the counter and update the last time
+            frameCount = 0;
+            lastTime = currentTime;
+        }
         
         // Swap front and back buffers
         glfwSwapBuffers(window);
