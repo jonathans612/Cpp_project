@@ -25,6 +25,7 @@ const float G = 1.0f;             // 6.674e-5 // A "tuned" gravitational constan
 const float epsilon = 10.0f;
 const int numParticles = 5000;    // Number of particles in the simulation
 const float dt = 1.0f;            // Our time step
+const int MAX_PARTICLES = 10000;  // A reasonable cap, adjust for your hardware
 
 // --- CUDA Kernel ---
 __global__ void calculateForces(float* posX, float* posY, float* mass, 
@@ -75,6 +76,13 @@ __global__ void calculateForces(float* posX, float* posY, float* mass,
 }
 
 int main(void) {
+    if (numParticles > MAX_PARTICLES) {
+        std::cerr << "Error: Particle count " << numParticles 
+                << " exceeds the maximum of " << MAX_PARTICLES 
+                << ". Please reduce the particle count." << std::endl;
+        return -1;
+    }
+    
     GLFWwindow* window;
 
     // Initialize GLFW
