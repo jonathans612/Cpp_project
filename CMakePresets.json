@@ -1,0 +1,23 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "cpu-build",
+            "displayName": "CPU Build",
+            "description": "Builds the CPU-only version",
+            "binaryDir": "${sourceDir}/build_cpu",
+            "cacheVariables": {
+                "USE_CUDA": "OFF"
+            }
+        },
+        {
+            "name": "gpu-build",
+            "displayName": "GPU (CUDA) Build",
+            "description": "Builds the CUDA-enabled version",
+            "binaryDir": "${sourceDir}/build_cuda",
+            "cacheVariables": {
+                "USE_CUDA": "ON"
+            }
+        }
+    ]
+}
