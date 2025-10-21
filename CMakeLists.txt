@@ -35,7 +35,7 @@ if(USE_CUDA)
 else()
     # --- CPU-Only Build Configuration ---
     find_package(OpenMP REQUIRED) # Find OpenMP (no CUDA to worry about)
-    add_executable(nbody_sim main_cpu.cpp)
+    add_executable(nbody_sim main.cpp)
 endif()
 
 # --- Add Post-Build Command to Copy DLLs (common to both) ---

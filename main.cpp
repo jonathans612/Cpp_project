@@ -139,6 +139,8 @@ int main(void) {
             p.resetForce();
         }
         
+        #pragma omp parallel for
+
         // Calculate gravitational forces between every pair of particles
         for (int i = 0; i < numParticles; ++i) {
             for (int j = 0; j < numParticles; ++j) {

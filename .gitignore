@@ -1,5 +1,5 @@
 # Build products
-build/
+build_cpu/
 build_cuda/
 *.exe
 *.dll

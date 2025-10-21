@@ -254,12 +254,16 @@ int main(void) {
             gpuErrchk(cudaMemcpy(h_forceX.data(), d_forceX, dataSize, cudaMemcpyDeviceToHost));
             gpuErrchk(cudaMemcpy(h_forceY.data(), d_forceY, dataSize, cudaMemcpyDeviceToHost));
         } else {
+
             // CPU force calculation (for comparison)
             // Reset forces
             for (int i = 0; i < numParticles; ++i) {
                 h_forceX[i] = 0.0f;
                 h_forceY[i] = 0.0f;
             }
+            
+            // parallelize the loop
+            #pragma omp parallel for
 
             for (int i = 0; i < numParticles; ++i) {
                 for (int j = 0; j < numParticles; ++j) {
