@@ -16,33 +16,29 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-
-# --- Find Dependencies (Common to both builds) ---
-
+# --- Find Dependencies ---
 find_package(OpenGL REQUIRED)
 
-# Manually find GLEW
+# Manually find GLEW and GLFW (common to both builds)
 find_path(GLEW_INCLUDE_DIR NAMES GL/glew.h PATHS "${CMAKE_CURRENT_SOURCE_DIR}/libs/glew-2.1.0/include")
 find_library(GLEW_LIBRARY NAMES glew32.lib PATHS "${CMAKE_CURRENT_SOURCE_DIR}/libs/glew-2.1.0/lib/Release/x64")
-
-# Manually find GLFW
 find_path(GLFW_INCLUDE_DIR NAMES GLFW/glfw3.h PATHS "${CMAKE_CURRENT_SOURCE_DIR}/libs/glfw-3.4.bin.WIN64/include")
 find_library(GLFW_LIBRARY NAMES glfw3.lib PATHS "${CMAKE_CURRENT_SOURCE_DIR}/libs/glfw-3.4.bin.WIN64/lib-vc2022")
 
-
-# --- Create Executable (Conditional) ---
-
+# --- Create Executable and Find Specific Dependencies ---
 if(USE_CUDA)
-    # If USE_CUDA is ON, build the .cu file
+    # --- CUDA Build Configuration ---
     find_package(CUDAToolkit REQUIRED)
+    find_package(OpenMP COMPONENTS CXX REQUIRED) # Find OpenMP just for C++
     set(CMAKE_CUDA_ARCHITECTURES "native")
     add_executable(nbody_sim main.cu)
 else()
-    # If USE_CUDA is OFF, build the .cpp file
-    add_executable(nbody_sim main.cpp)
+    # --- CPU-Only Build Configuration ---
+    find_package(OpenMP REQUIRED) # Find OpenMP (no CUDA to worry about)
+    add_executable(nbody_sim main_cpu.cpp)
 endif()
 
-# --- Add Post-Build Command to Copy DLLs ---
+# --- Add Post-Build Command to Copy DLLs (common to both) ---
 
 # This command runs after the nbody_sim target is built
 add_custom_command(
@@ -72,7 +68,11 @@ target_link_libraries(nbody_sim PRIVATE
     ${GLFW_LIBRARY}
 )
 
-# Conditionally link the CUDA runtime library
+# Conditionally link CUDA and OpenMP
 if(USE_CUDA)
-    target_link_libraries(nbody_sim PRIVATE CUDA::cudart)
+    # For the CUDA build, link both CUDA and OpenMP
+    target_link_libraries(nbody_sim PRIVATE CUDA::cudart OpenMP::OpenMP_CXX)
+else()
+    # For the CPU build, link only OpenMP
+    target_link_libraries(nbody_sim PRIVATE OpenMP::OpenMP_CXX)
 endif()
